@@ -1,35 +1,23 @@
 
-/*function drawCircle(context, pos, radius, color, outline) {
-    context.beginPath();
-    context.arc(pos[0], pos[1], radius, 0, 2 * Math.PI, true);
-    if (outline) {
-        context.strokeStyle = color;
-        context.stroke();
-    } else {
-        context.fillStyle = color;
-        context.fill();
-    }
-    
-}*/
 function drawRect(context, x, y, width, height, color) {
     context.fillStyle = color;
     context.fillRect(x, y, width, height);
-}/*
+}
 function drawText(context, text, font, style, x, y) {
     context.font = font;
     context.fillStyle = style;
     context.fillText(text, x, y);
 }
-
+/*
 function chooseFromArray(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
-
+*/
 function getRandomInt(minimum, maximum) {
     rand = minimum + Math.floor(Math.random() * (maximum - minimum + 1));
     return rand;
 }
-
+/*
 function calc_hypotenuse_length(a, b) {
     return Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2));
 }
@@ -136,6 +124,13 @@ function getCentre() {
   };
 })();
 
+Diamond = Class.extend({
+    init: function(pos) {
+        this.pos = pos;
+        this.collected = false;
+    }
+});
+
 MySprite = Class.extend({
     init: function(pos, vel) {
         this.pos = pos;
@@ -150,8 +145,15 @@ MySprite = Class.extend({
 Player = MySprite.extend({
     init: function() {        
         this._super([0,0], [0, 0]);
+        this.diamonds = 0;
+        this.dead = false;
+        
+        this.update(0);
     },
     draw: function() {
+        if (this.dead) {
+            return;
+        }
         drawX = this.pos[0] * gSettings.tile_size;
         drawY = this.pos[1] * gSettings.tile_size;
         
@@ -163,151 +165,126 @@ Player = MySprite.extend({
         }
     },
     update: function(dt) {
+        if (this.dead) {
+            return;
+        }
+        //about to move tile
+        //gTiles[this.pos[0]][this.pos[1]] = gSettings.const_empty;
+        
+        if (gKeyState[37]) { //left arrow
+            this.left();
+        } else if (gKeyState[39]) { //right arrow
+            this.right();
+        } else if (gKeyState[38]) { //up array
+            this.up();
+        } else if (gKeyState[40]) { //down array
+            this.down();
+        }
+        
         //this._super(dt);
+        this.checkForDiamond();
+        //gTiles[this.pos[0]][this.pos[1]] = gSettings.const_player;
         gTiles[this.pos[0]][this.pos[1]] = gSettings.const_empty;
     },
     left: function() {
-        this.pos[0]--;
-        if (this.pos[0] < 0) {
-            this.pos[0] = 0;
-        }
+        targetX = this.pos[0] - 1;
+        targetY = this.pos[1];
+        
+        player_move(targetX, targetY, this.pos[0], this.pos[1]);
     },
     right: function() {
-        this.pos[0]++;
-        if (this.pos[0] > gSettings.tiles_width - 1) {
-            this.pos[0] = gSettings.tiles_width - 1;
-        }
+        targetX = this.pos[0] + 1;
+        targetY = this.pos[1];
+        
+        player_move(targetX, targetY, this.pos[0], this.pos[1]);
     },
     up: function() {
-        this.pos[1]--;
-        if (this.pos[1] < 0) {
-            this.pos[1] = 0;
-        }
+        targetX = this.pos[0];
+        targetY = this.pos[1] - 1;
+        
+        player_move(targetX, targetY, this.pos[0], this.pos[1]);
     },
     down: function() {
-        this.pos[1]++;
-        if (this.pos[1] > gSettings.tiles_height - 1) {
-            this.pos[1] = gSettings.tiles_height - 1;
-        }
-    }
-});
-
-/*MissileState = {
-    FLYING : 1,
-    EXPLODING : 2,
-    COLLAPSING : 3
-}
-
-Missile = MyRoundSprite.extend({
-	init: function(pos, vel, color, blastspeed) {
-	    this.state = MissileState.FLYING;
-        this.color = color;
-        this.blastspeed = blastspeed;
-
-        this._super(pos, vel, gSettings.blastradius, gSettings.missileradius);
-	},
-	//size : {x:0,y:0},
-	update : function(dt) {
-        this._super(dt);
+        targetX = this.pos[0];
+        targetY = this.pos[1] + 1;
         
-        if (this.is_offscreen()) {
-            this.kill();
-        }
-        
-        if (this.state == MissileState.EXPLODING) {
-            this.radius_float += (this.blastspeed * dt);
-            this.currentradius = Math.floor(this.radius_float);
-            if (this.currentradius > this.maxradius) {
-                this.state = MissileState.COLLAPSING;
-            }
-        } else if (this.state == MissileState.COLLAPSING) {
-            this.radius_float -= (this.blastspeed * dt);
-            this.currentradius = Math.round(this.radius_float);
-            if (this.currentradius < 0) {
-                this.kill();
-                return;
+        player_move(targetX, targetY, this.pos[0], this.pos[1]);
+    },
+    checkForDiamond: function() {
+        if (gTiles[this.pos[0]][this.pos[1]] == gSettings.const_diamond) {
+            this.diamonds++;
+            
+            //remove the diamond
+            gTiles[this.pos[0]][this.pos[1]] = gSettings.const_empty;
+            
+            if (this.diamonds == gDiamondCount) {
+                loadNextLevel();
             }
         }
     },
-    draw: function(context) {
-        drawCircle(context, this.pos, this.currentradius, this.color);
-    },
-    explode: function() {
-        if (this.state == MissileState.FLYING) {
-            this.state = MissileState.EXPLODING;
-            this.radius_float = this.currentradius;
-            this.vel = [0,0];
-            gSound.play('explosion');
-        }
-    },
-    kill: function() {
-        var index = gMissiles.indexOf(this);
-        gMissiles.splice(index, 1);
+    die: function() {
+        //this.dead = true;
+        //todo play squish sound
     }
 });
 
-EnemyMissile = Missile.extend({
-    init: function() {
-        pos = Array(2);
-        if (chooseFromArray([0, 1]) == 0) {
-            // left or right side
-            pos[0] = chooseFromArray([0, gSettings.width]);
-            pos[1] = getRandomInt(0, gSettings.height);
-        } else {
-            // top or bottom edge
-            pos[0] = getRandomInt(0, gSettings.width);
-            pos[1] = chooseFromArray([0, gSettings.height]);
-        }
-        vel = calc_vel(pos, getCentre(), gSettings.missilevelocity);
+function player_move(x, y, playerX, playerY) {
+    if (x < 0 || y < 0) {
+        return false;
+    }
+    if (y > gSettings.tiles_height - 1 || x > gSettings.tiles_width - 1) {
+        return false;
+    }
+
+    var tile = gTiles[x][y];
+    var move = false;
     
-        this._super(pos, vel, 'red', gSettings.blastspeed);
-    },
-    kill: function() {
-        this._super();
-        gEnemyCount--;
-    }
-});
-
-FriendlyMissile = Missile.extend({
-    init: function(destination) {
-        this.center = getCentre();
-        this.targetrange = calc_distance(this.center, destination);
-        
-        // use center as start pos so we can figure out vel vector
-        vel = calc_vel(this.center, destination, gSettings.missilevelocity * 2);
-        
-        vector = normalize_vector(vel[0], vel[1]);
-        h = gSettings.planetradius + gSettings.missileradius + 1;
-        x = gSettings.width/2 + (vector[0] * h);
-        y = gSettings.height/2 + (vector[1] * h);
-        pos = [Math.round(x), Math.round(y)];
-        
-        this._super(pos, vel, 'white', gSettings.blastspeed);
-        
-        gSound.play('launch');
-    },
-    update: function(dt) {
-        this._super(dt);
-        
-        if (this.targetrange < calc_distance(this.pos, this.center)) {
-            this.explode();
+    if (tile == gSettings.const_solid) {
+        //no go
+    } else if (tile == gSettings.const_boulder) {
+        //boulder push logic
+        //can only push sideways
+        if (y == playerY) {
+            var nextX = null;
+            if (playerX < x) {
+                nextX = x+1; //pushing right
+            } else {
+                nextX = x-1; //pushing left
+            }
+            if (nextX >= 0
+                && nextX < gSettings.tiles_width
+                && gTiles[nextX][y] == gSettings.const_empty) {
+            
+                gTiles[nextX][y] = gSettings.const_boulder;
+                move = true;
+            }
         }
+    } else if (tile == gSettings.const_empty
+            || tile == gSettings.const_diamond
+            || tile == gSettings.const_dirt) {
+            
+        move = true;
     }
-});
+    
+    if (move) {
+        gPlayer.pos[0] = x;
+        gPlayer.pos[1] = y;
+    }
+}
 
 function onSoundLoad() {
     gSound.numSoundsLoaded++;
 }
 SoundManager = Class.extend({
     numSoundsLoaded: 0,
-    sounds: Array(2),
+    sounds: Array(),//Array(2),
     enabled: true,
     init: function() {
         try {
             //this._context = new webkitAudioContext();
             
-            this.sounds['launch'] = new Audio("sfx_fly.ogg");
-            this.sounds['explosion'] = new Audio("DeathFlash.ogg");
+            //this.sounds['launch'] = new Audio("sfx_fly.ogg");
+            //this.sounds['explosion'] = new Audio("DeathFlash.ogg");
             //this.sounds['music'] = new Audio("DST-AngryRobotIII.mp3");
             
             for (var key in this.sounds) {
@@ -336,25 +313,28 @@ SoundManager = Class.extend({
     }
 });
 var gSound = new SoundManager();
-*/
+
 function onImageLoad() {
     gImage.numImagesLoaded++;
 }
 ImageManager = Class.extend({
     numImagesLoaded: 0,
-    images: Array(3),
-    init: function() {            
-        this.images['diamond'] = new Image();
-        this.images['diamond'].onload = onImageLoad;
-        this.images['diamond'].src = 'diamond5.png';
-        
-        this.images['dirt'] = new Image();
-        this.images['dirt'].onload = onImageLoad;
-        this.images['dirt'].src = 'Dirt.png';
-        
-        this.images['player'] = new Image();
-        this.images['player'].onload = onImageLoad;
-        this.images['player'].src = 'player.png';
+    images: null,
+    imagedict: {
+        'diamond': 'diamond5.png', 
+        'dirt': 'Dirt.png',
+        'player': 'player.png',
+        'boulder': 'Boulder.png',
+        'map1': 'maps/1.png',
+        'map2': 'maps/2.png'
+    },
+    init: function() {
+        this.images = Array(6);
+        for (var name in this.imagedict) {
+            this.images[name] = new Image();
+            this.images[name].onload = onImageLoad;
+            this.images[name].src = this.imagedict[name];
+        }
     },
     getImage: function(name) {
         if (this.images.length == this.numImagesLoaded) {
@@ -400,16 +380,11 @@ function onKeyDown(event) {
             newGame();
         }
     } else if (gState == State.INGAME) {
-        if (event.keyCode == 37) { //left arrow
-            gPlayer.left();
-        } else if (event.keyCode == 39) { //right arrow
-            gPlayer.right();
-        } else if (event.keyCode == 38) { //up array
-            gPlayer.up();
-        } else if (event.keyCode == 40) { //down array
-            gPlayer.down();
-        }
+        gKeyState[event.keyCode] = true;
     }
+}
+function onKeyUp(event) {
+    gKeyState[event.keyCode] = false;
 }
 
 var gCanvas = document.getElementById('gamecanvas');
@@ -417,6 +392,8 @@ var gCanvas = document.getElementById('gamecanvas');
 //gCanvas.style.cursor = "none";
 
 window.addEventListener('keydown', onKeyDown, false);
+window.addEventListener('keyup', onKeyUp, false);
+
 var gContext = gCanvas.getContext('2d');
 
 /*var gMousePos = null;
@@ -440,7 +417,7 @@ State = {
     INGAME: 2,
     ENDGAME: 3
 }
-gState = State.PREGAME;
+gState = State.LOADING;
 
 gSettings = {
     width: gCanvas.width,
@@ -452,51 +429,100 @@ gSettings = {
     
     const_empty: 0,
     const_dirt: 1,
+    const_diamond: 2,
+    const_boulder: 3,
+    const_solid: 4,
+    const_monster: 5,
     
-    /*missilevelocity: 25,
-    missileradius: 2,
-    
-    blastspeed: 15,
-    blastradius: 50,
-    
-    planetradius: 16,
-    minRangeColor: 'MidnightBlue',
-    
-    splashBackgroundColor: "#0A0A0A",
-
     splashTextColor: "#88CEFA",
     bigFont: '24pt Arial',
-    smallFont: '18pt Arial'*/
-}/*
-gTheWorld = new TheWorld();
-gMissiles = [];*/
-gPlayer = null;
-gTiles = null;
-/*gEnemyCount = 0;*/
+    smallFont: '18pt Arial'
+}
+
+var gPlayer = null;
+var gTiles = null;
+var gDiamondCount = null;
+
+var gKeyState = Array();
+var gLevelNumber = 0;
 var ONE_FRAME_TIME = 1000 / 60;
 
-function loadTiles() {
-    gTiles = Array(gSettings.tiles_width);
-    for (var i = 0; i < gTiles.length; i++) {
-        gTiles[i] = Array(gSettings.tiles_height);
-    }
-    
-    for (var i = 0; i < gTiles.length; i++) {
-        for (var j = 0; j < gTiles[i].length; j++) {
-            gTiles[i][j] = gSettings.const_dirt;
-        }
+function reloadLevel() {
+    loadTiles();
+    gPlayer = new Player();
+}
+function loadNextLevel() {
+    gLevelNumber++;
+    if (loadTiles()) {
+        gPlayer = new Player();
+    } else {
+        //no more levels
+        endGame();
     }
 }
+function loadTiles() {
+
+    gTiles = Array(gSettings.tiles_width);
+    for (i = 0; i < gTiles.length; i++) {
+        gTiles[i] = Array(gSettings.tiles_height);
+        for (var j = 0; j < gTiles[i].length; j++) {
+            gTiles[i][j] = null;
+        }
+    }
+    
+    gDiamondCount = 0;
+
+    console.log('map'+gLevelNumber);
+    map = gImage.getImage('map'+gLevelNumber);
+    if (map) {
+        var mapcanvas = document.createElement('canvas');
+        mapcanvas.width = gSettings.tiles_width;
+        mapcanvas.height = gSettings.tiles_height;
+        
+        var mapcontext = mapcanvas.getContext('2d');
+        mapcontext.drawImage(map, 0, 0);
+
+        for (var x = 0;x < gSettings.tiles_width; x++) {
+            for (var y = 0; y < gSettings.tiles_height; y++) {
+                var pixelData = mapcontext.getImageData(x, y, 1, 1).data;
+                
+                if (pixelData[0] == 255 && pixelData[1] == 255 && pixelData[2] == 255) {
+                    //white - empty
+                    gTiles[x][y] = gSettings.const_empty;
+                } else if (pixelData[0] == 0 && pixelData[1] == 0 && pixelData[2] == 0) {
+                    //black - dirt
+                    gTiles[x][y] = gSettings.const_dirt;
+                } else if (pixelData[0] == 127 && pixelData[1] == 127 && pixelData[2] == 127) {
+                    //grey - boulder
+                    gTiles[x][y] = gSettings.const_boulder;
+                } else if (pixelData[0] == 255 && pixelData[1] == 0 && pixelData[2] == 0) {
+                    //red - solid
+                    gTiles[x][y] = gSettings.const_solid;
+                } else if (pixelData[0] == 0 && pixelData[1] == 255 && pixelData[2] == 0) {
+                    //green - monster
+                    gTiles[x][y] = gSettings.const_monster;
+                } else if (pixelData[0] == 0 && pixelData[1] == 0 && pixelData[2] == 255) {
+                    //blue - diamond
+                    gTiles[x][y] = gSettings.const_diamond;
+                    gDiamondCount++;
+                }
+            }
+        }
+        return true;
+    }
+    return false;
+}
 function newGame() {
-    //gMissiles = [];
-    //gEnemyCount = 0;
     //gStartTime = Date.now();
-    gState = State.INGAME;
+    
+    gLevelNumber = 1;
     loadTiles();
     gPlayer = new Player();
     
     //gSound.play('music');
     //gSound.volume('music', 0.5);
+    
+    gState = State.INGAME;
 }
 function endGame() {
     gState = State.ENDGAME;
@@ -505,28 +531,121 @@ function endGame() {
 
 function one_second_update() {
     if (gState == State.INGAME) {
-        //spawn_enemy_missile();
-    }
-}/*
-function spawn_enemy_missile() {
-    gCurrentTime = Date.now();
-    
-    // Raise max number of missiles by 1 every 10 seconds
-    gameTime = gCurrentTime - gStartTime;
-    enemies = Math.floor(gameTime / 10000) + 1;
-    
-    if (gEnemyCount < enemies) {
-        m = new EnemyMissile();
-        gMissiles.push(m);
-        gEnemyCount++;
     }
 }
-*/
+
+function findRockFallSpot(x, y) {
+    if (y+1 == gSettings.tiles_height) {
+        //sitting on the bottom
+        return [x, y];
+    }
+    if (gTiles[x][y+1] == gSettings.const_empty) {
+        //cell below is empty
+        return [x, y+1];
+    }
+    if (x+1 < gSettings.tiles_width
+        && gTiles[x+1][y] == gSettings.const_empty
+        && gTiles[x+1][y+1] == gSettings.const_empty
+        && x+1 != gPlayer.pos[0] //dont fall sideways into the player
+        && y != gPlayer.pos[1]
+        && gTiles[x][y+1] != gSettings.const_dirt) { //dont fall if sitting on dirt
+        
+        //fall to the right
+        return [x+1, y];
+    }
+    if (x-1 > 0
+        && gTiles[x-1][y] == gSettings.const_empty
+        && gTiles[x-1][y+1] == gSettings.const_empty
+        && x-1 != gPlayer.pos[0] //dont fall sideways into the player
+        && y != gPlayer.pos[1]
+        && gTiles[x][y+1] != gSettings.const_dirt) { //dont fall if sitting on dirt
+        
+        //fall to the left
+        return [x-1, y];
+    }
+    return [x, y];
+}
 function updateGame(dt) {
-    //for (var i = 0; i < gMissiles.length; i++) {
-    //    gMissiles[i].update(dt);
-    //}
-    gPlayer.update(dt);
+    if (gState != State.INGAME) {
+        return;
+    }
+
+    if (gLoopCount % 2 == 0) {
+        gPlayer.update(dt);
+    }
+    
+    if (gLoopCount % 3 == 0) {
+        var newspot = null;
+        var x = null;
+        var y = null;
+        for (y = gSettings.tiles_height - 1; y >= 0; y--) {
+            for (x = gSettings.tiles_width - 1; x >= 0; x--) {
+                switch(gTiles[x][y]) {
+                    case gSettings.const_diamond:
+                        newspot = findRockFallSpot(x, y);
+                        gTiles[x][y] = gSettings.const_empty;
+                        gTiles[newspot[0]][newspot[1]] = gSettings.const_diamond;
+                        break;
+                    case gSettings.const_boulder:
+                        newspot = findRockFallSpot(x, y);
+                        if (x != newspot[0] || y != newspot[1]) {
+                            //the boulder has moved
+                            if (newspot[0] == gPlayer.pos[0]
+                            //&& newspot[1]+1 == gPlayer.pos[1]) {
+                            && newspot[1] == gPlayer.pos[1]) {
+                                reloadLevel();
+                                //gPlayer.die();
+                            }
+                        }
+                        gTiles[x][y] = gSettings.const_empty;
+                        gTiles[newspot[0]][newspot[1]] = gSettings.const_boulder;
+                        break;
+                    case gSettings.const_solid:
+                        break;
+                    case gSettings.const_dirt:
+                        break;
+                    case gSettings.const_empty:
+                        break;
+                    default:
+                        console.log('unknown tile type found->'+gTiles[x][y]+" x=="+x+" y=="+y);
+                }
+            }
+        }
+    }
+    /*for (var i = 0; i < gRocks.length; i++) {
+        x = gRocks[i][0];
+        y = gRocks[i][1];
+        newspot = findRockFallSpot(x, y);
+        
+        if (newspot[0] == gPlayer.pos[0] && newspot[1]+1 == gPlayer.pos[1]) {
+            alert('dead');
+        }
+        
+        gTiles[x][y] = gSettings.const_empty;
+        gTiles[newspot[0]][newspot[1]] = gSettings.const_rock;
+        
+        gRocks[i][0] = newspot[0];
+        gRocks[i][1] = newspot[1];
+    }
+    for (var i = 0; i < gDiamonds.length; i++) {
+        if (gDiamonds[i].got) {
+            continue;
+        }
+        x = gDiamonds[i].pos[0];
+        y = gDiamonds[i].pos[1];
+        newspot = findRockFallSpot(x, y);
+        
+        //if (newspot[0] == gPlayer.pos[0] && newspot[1]+1 == gPlayer.pos[1]) {
+        //    endGame;
+        //}
+        
+        gTiles[x][y] = gSettings.const_empty;
+        gTiles[newspot[0]][newspot[1]] = gSettings.const_diamond;
+        
+        gDiamonds[i].pos[0] = newspot[0];
+        gDiamonds[i].pos[1] = newspot[1];
+    }*/
+    //gPlayer.checkForDiamond();
 }
 function checkCollisions() {
     /*for (var i = 0; i < gMissiles.length; i++) {
@@ -550,7 +669,7 @@ function checkCollisions() {
         }
     }*/
 }
-/*
+
 function drawSplashLoading(context) {
     total = gSound.sounds.length + gImage.images.length;
     loaded = gSound.numSoundsLoaded + gImage.numImagesLoaded;
@@ -566,11 +685,11 @@ function drawSplashLoading(context) {
 
     drawRect(context, splashX, splashY, splashWidth, splashHeight, gSettings.splashBackgroundColor);
 
-    text = "Blue Ball Defender";
+    text = "Mine Runner";
     x = splashX + 10;
     y = splashY + 50;
     drawText(context, text, gSettings.bigFont, gSettings.splashTextColor, x, y);
-    
+        
     text = "Loading...    "+loaded+"/"+total;
     x = splashX + 10;
     y = splashY + 150;
@@ -584,22 +703,22 @@ function drawSplashPregame(context) {
 
     drawRect(context, splashX, splashY, splashWidth, splashHeight, gSettings.splashBackgroundColor);
 
-    text = "Blue Ball Defender";
+    text = "Mine Runner";
     x = splashX + 10;
     y = splashY + 50;
     drawText(context, text, gSettings.bigFont, gSettings.splashTextColor, x, y);
     
-    text = "Our fragile blue planet is under attack";
+    text = "Collect the diamonds";
     x = splashX + 10;
     y = splashY + 150;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
     
-    text = "Use the mouse to target missiles";
+    text = "Use the arrow keys";
     x = splashX + 10;
     y = splashY + 200;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
     
-    text = "Press the space bar to begin";
+    text = "Press 'x' to begin";
     x = splashX + 10;
     y = splashY + 250;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
@@ -621,47 +740,57 @@ function drawSplashEndgame(context) {
     x = splashX + 10;
     y = splashY + 100;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
-}*/
+}
 function drawGame() {
     gContext.fillStyle = "black";
     gContext.fillRect(0 , 0, gCanvas.width, gCanvas.height);
     //context.clearRect(0, 0, canvas.width, canvas.height);
     
-    //draw tiles
-    for (var i = 0; i < gTiles.length; i++) {
-        for (var j = 0; j < gTiles[i].length; j++) {
-            x = i * gSettings.tile_size;
-            y = j * gSettings.tile_size;
-            
-            if (gTiles[i][j] == gSettings.const_empty) {
-                // nothing to do
-            } else if (gTiles[i][j] == gSettings.const_dirt) {
-                drawRect(gContext, x, y, gSettings.tile_size, gSettings.tile_size, 'brown');
-            }
-        }
-    }
+    diamondImage = gImage.getImage('diamond');
+    dirtImage = gImage.getImage('dirt');
+    boulderImage = gImage.getImage('boulder');
+    solidImage = null;
+    monsterImage = null;
     
     if (gState == State.INGAME) {
-        //draw player
-        gPlayer.draw();
-        /*
-        // Draw the minimum target range
-        minrange = getMinRange();
-        drawCircle(gContext, getCentre(), minrange, gSettings.minRangeColor, true);
+        //draw tiles
+        for (var i = 0; i < gTiles.length; i++) {
+            for (var j = 0; j < gTiles[i].length; j++) {
+                x = i * gSettings.tile_size;
+                y = j * gSettings.tile_size;
+                
+                if (gTiles[i][j] == gSettings.const_empty) {
+                    // nothing to do
+                } else if (gTiles[i][j] == gSettings.const_dirt) {
+                    gContext.drawImage(dirtImage, x, y);
+                } else if (gTiles[i][j] == gSettings.const_diamond) {
+                    gContext.drawImage(diamondImage, x, y);
+                } else if (gTiles[i][j] == gSettings.const_boulder) {
+                    gContext.drawImage(boulderImage, x, y);
+                } else if (gTiles[i][j] == gSettings.const_solid) {
+                    //gContext.drawImage(solidImage, x, y);
+                    drawRect(gContext, x, y, gSettings.tile_size, gSettings.tile_size, 'red');
+                } else if (gTiles[i][j] == gSettings.const_monster) {
+                    //gContext.drawImage(monsterImage, x, y);
+                    drawRect(gContext, x, y, gSettings.tile_size, gSettings.tile_size, 'green');
+                }
+            }
+        }
 
-        gTheWorld.draw(gContext);
-        for (var i = 0; i < gMissiles.length; i++) {
-            gMissiles[i].draw(gContext);
+        gPlayer.draw();
+        
+        //draw scores etc
+        x = gSettings.width - 70;
+        y = 20;
+        
+        image = gImage.getImage('diamond');
+        if (image) {
+            gContext.drawImage(image, x+20, y);
         }
         
-        // draw the crosshairs
-        if (gMousePos) {
-            crosshairimage = gImage.getImage('crosshair');
-            halfwidth = crosshairimage.width/2;
-            if (crosshairimage) {
-                gContext.drawImage(crosshairimage, gMousePos.x - halfwidth, gMousePos.y - halfwidth);
-            }
-        }*/
+        y += 40;
+        text = gPlayer.diamonds + '/' + gDiamondCount;
+        drawText(gContext, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
     } else if (gState == State.LOADING) {
         drawSplashLoading(gContext);
     } else if (gState == State.PREGAME) {
@@ -671,18 +800,22 @@ function drawGame() {
     }
 }
 
-gOldTime = Date.now();
+var gOldTime = Date.now();
+var gLoopCount = 0;
 var mainloop = function() {
     newtime = Date.now();
     dt = (newtime - gOldTime)/1000;
     gOldTime = newtime;
+    
+    gLoopCount++;
+    gLoopCount = gLoopCount % 1000;
     
     updateGame(dt);
     checkCollisions();
     drawGame();
 };
 
-newGame();
+//newGame();
 
 setInterval( mainloop, ONE_FRAME_TIME );
 setInterval( one_second_update, 1000 );
