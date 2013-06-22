@@ -84,6 +84,42 @@ function getRandomInt(minimum, maximum) {
   };
 })();
 
+Monster = Class.extend({
+    init: function(pos) {
+        this.pos = pos;
+        this.direction = null;
+    },
+    move: function() {
+        var newpos = null;
+        if (this.direction == 'right'
+            && x+1 < gSettings.tiles_width
+            && gTiles[x+1][y] == gSettings.const_empty) {
+
+            newpos = [x+1,y];
+        } else if (this.direction == 'up'
+            && y-1 >= 0
+            && gTiles[x][y-1] == gSettings.const_empty) {
+
+            newpos = [x,y-1];
+        } else if (this.direction == 'left'
+            && x-1 >= 0
+            && gTiles[x-1][y] == gSettings.const_empty) {
+
+            newpos = [x-1,y];
+        } else if (this.direction == 'down'
+            && y+1 < gSettings.tiles_height
+            && gTiles[x][y+1] == gSettings.const_empty) {
+
+            newpos = [x,y+1];
+        }
+        if (!newpos) {
+            var directions = ['left', 'right', 'up', 'down'];
+            this.direction = directions[Math.floor(Math.random() * directions.length)];
+            console.log(this.direction);
+        }
+    }
+});
+
 MySprite = Class.extend({
     init: function(pos) {
         this.pos = pos;
@@ -110,26 +146,22 @@ Player = MySprite.extend({
             drawRect(gContext, drawX, drawY, gSettings.tile_size, gSettings.tile_size, 'white');
         }
     },
-    update: function(dt) {
+    update: function() {
         if (this.dead) {
             return;
         }
-        //about to move tile
-        //gTiles[this.pos[0]][this.pos[1]] = gSettings.const_empty;
         
-        if (gKeyState[37]) { //left arrow
+        if (gKeyState[65]) { //a - left
             this.left();
-        } else if (gKeyState[39]) { //right arrow
+        } else if (gKeyState[68]) { //d - right
             this.right();
-        } else if (gKeyState[38]) { //up array
+        } else if (gKeyState[87]) { //w - up
             this.up();
-        } else if (gKeyState[40]) { //down array
+        } else if (gKeyState[83]) { //s - down
             this.down();
         }
         
-        //this._super(dt);
         this.checkForDiamond();
-        //gTiles[this.pos[0]][this.pos[1]] = gSettings.const_player;
         gTiles[this.pos[0]][this.pos[1]] = gSettings.const_empty;
     },
     left: function() {
@@ -272,10 +304,18 @@ ImageManager = Class.extend({
         'player': 'player.png',
         'boulder': 'Boulder.png',
         'map1': 'maps/1.png',
-        'map2': 'maps/2.png'
+        'map2': 'maps/2.png',
+        'map3': 'maps/3.png',
+        'map4': 'maps/4.png',
+        'map5': 'maps/5.png',
+        'map7': 'maps/7.png',
+        'map8': 'maps/8.png',
+        'map9': 'maps/9.png',
+        'map10': 'maps/10.png',
+        'map11': 'maps/11.png',
     },
     init: function() {
-        this.images = Array(6);
+        this.images = Array(14);
         for (var name in this.imagedict) {
             this.images[name] = new Image();
             this.images[name].onload = onImageLoad;
@@ -339,30 +379,40 @@ gSettings = {
     
     splashTextColor: "#88CEFA",
     bigFont: '24pt Arial',
-    smallFont: '18pt Arial'
+    smallFont: '18pt Arial',
+    
+    hisColor: 'blue',
+    herColor: 'pink',
+    hisX: 100,
+    herX: 175,
+    
+    cutSceneDelay: 4,
+    cutSceneDrawPrincess: true
 }
 
 var gPlayer = null;
+var gMonsters = null;
 var gTiles = null;
 var gDiamondCount = null;
 
 var gKeyState = Array();
-var gLevelNumber = 0;
+var gLevelNumber = -1;
 var ONE_FRAME_TIME = 1000 / 60;
 
 var gLoading = false;
 
 function reloadLevel() {
     gLoading = true;
-    loadTiles();
     gPlayer = new Player();
+    loadTiles();
     gLoading = false;
 }
 function loadNextLevel() {
     gLoading = true;
     gPlayer = new Player();
     gLevelNumber++;
-    if (!loadTiles()) {
+    gSecondCount = 0;
+    if (gLevelNumber!=0 && gLevelNumber!=5 && !loadTiles()) {
         //no more levels
         gLoading = false;
         endGame();
@@ -380,6 +430,7 @@ function loadTiles() {
     }
     
     gDiamondCount = 0;
+    gMonsters = Array();
 
     map = gImage.getImage('map'+gLevelNumber);
     if (map) {
@@ -409,6 +460,8 @@ function loadTiles() {
                 } else if (pixelData[0] == 0 && pixelData[1] == 255 && pixelData[2] == 0) {
                     //green - monster
                     gTiles[x][y] = gSettings.const_monster;
+                    m = new Monster([x, y]);
+                    gMonsters.push(m);
                 } else if (pixelData[0] == 0 && pixelData[1] == 0 && pixelData[2] == 255) {
                     //blue - diamond
                     gTiles[x][y] = gSettings.const_diamond;
@@ -421,7 +474,7 @@ function loadTiles() {
     return false;
 }
 function newGame() {
-    gLevelNumber = 0;
+    gLevelNumber = -1;
     loadNextLevel();
     
     //gSound.play('music');
@@ -436,6 +489,7 @@ function endGame() {
 
 function one_second_update() {
     if (gState == State.INGAME) {
+        gSecondCount++;
     }
 }
 
@@ -470,19 +524,52 @@ function findRockFallSpot(x, y) {
     }
     return [x, y];
 }
-function updateGame(dt) {
+function updateGame() {
     if (gState != State.INGAME || gLoading) {
+        return;
+    }
+    if (gLevelNumber == 0 || gLevelNumber == 6 || gLevelNumber == 12) {
         return;
     }
 
     if (gLoopCount % 3 == 0) {
-        gPlayer.update(dt);
+        gPlayer.update();
     }
     
-    if (gLoopCount % 4 == 0) {
+    if (gLoopCount % 6 == 0) {
         var newspot = null;
         var x = null;
         var y = null;
+        
+        //Do the monsters first
+        var toempty = [];
+        var tomonster = [];
+        for (y = gSettings.tiles_height - 1; y >= 0; y--) {
+            for (x = gSettings.tiles_width - 1; x >= 0; x--) {
+                if (gTiles[x][y] == gSettings.const_monster) {
+
+                    for (i in gMonsters) {
+                        if (gMonsters[i].pos[0] == x && gMonsters[i].pos[1] == y) {
+                            newspot = gMonsters[i].move();
+                            toempty.push([x,y]);
+                            tomonster.push(newspot);
+                            gMonsters[i].pos = newspot;
+                        }
+                    }
+                }
+            }
+        }
+        for (var i in toempty) {
+            x = toempty[i][0];
+            y = toempty[i][1];
+            gTiles[x][y] = gSettings.const_empty;
+        }
+        for (var i in tomonster) {
+            x = tomonster[i][0];
+            y = tomonster[i][1];
+            gTiles[x][y] = gSettings.const_monster;
+        }
+        
         for (y = gSettings.tiles_height - 1; y >= 0; y--) {
             for (x = gSettings.tiles_width - 1; x >= 0; x--) {
                 switch(gTiles[x][y]) {
@@ -507,10 +594,9 @@ function updateGame(dt) {
                         gTiles[newspot[0]][newspot[1]] = gSettings.const_boulder;
                         break;
                     case gSettings.const_solid:
-                        break;
                     case gSettings.const_dirt:
-                        break;
                     case gSettings.const_empty:
+                    case gSettings.const_monster:
                         break;
                     default:
                         console.log('unknown tile type found->'+gTiles[x][y]+" x=="+x+" y=="+y);
@@ -558,19 +644,14 @@ function drawSplashPregame(context) {
     y = splashY + 50;
     drawText(context, text, gSettings.bigFont, gSettings.splashTextColor, x, y);
     
-    text = "Collect the diamonds";
+    text = "Use wasd to move";
     x = splashX + 10;
     y = splashY + 150;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
     
-    text = "Use the arrow keys";
-    x = splashX + 10;
-    y = splashY + 200;
-    drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
-    
     text = "Press 'x' to begin";
     x = splashX + 10;
-    y = splashY + 250;
+    y = splashY + 175;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
 }
 function drawSplashEndgame(context) {
@@ -591,6 +672,143 @@ function drawSplashEndgame(context) {
     y = splashY + 100;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);*/
 }
+function drawCutsceneCharacters() {
+    imageHim = gImage.getImage('player');
+    imageHer = gImage.getImage('player');
+    gContext.drawImage(imageHim, 70, 200);
+    
+    if (gSettings.cutSceneDrawPrincess) {
+        gContext.drawImage(imageHer, gCanvas.width - 100, 200);
+    }
+}
+function drawCutsceneText(text, textcolor, x) {
+    var y = 180;
+    for (var i in text) {
+        drawText(gContext, text[i], gSettings.smallFont, textcolor, x, y);
+        y += 25;
+    }
+}
+function drawFirstCutScene() {
+    drawCutsceneCharacters();
+    
+    var text = [], x = null, textcolor = null;
+
+    if (gSecondCount < 1*gSettings.cutSceneDelay) {
+        text.push('Most beautiful princess, marry me.');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    } else if (gSecondCount < 2*gSettings.cutSceneDelay) {
+        text.push('You\'re my oldest friend.');
+        text.push('You know I cannot.');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    } else if (gSecondCount < 3*gSettings.cutSceneDelay) {
+        text.push('Suitors must pay the king\'s bounty');
+        text.push('for the hand of the princess.');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    }  else if (gSecondCount < 4*gSettings.cutSceneDelay) {
+        text.push('We\'ll always be friends');
+        text.push('but we cannot be together.');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    }  else if (gSecondCount < 5*gSettings.cutSceneDelay) {
+        text.push('There must be a way.');
+        text.push('I shall enter the mines.');
+        text.push('I will pay the bounty in diamonds.');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    } else {
+        loadNextLevel();
+        return;
+    }
+
+    drawCutsceneText(text, textcolor, x);
+}
+function drawSecondCutScene() {
+    drawCutsceneCharacters();
+    
+    var text = [], x = null, textcolor = null;
+
+    if (gSecondCount < 1*gSettings.cutSceneDelay) {
+        text.push('My lady, I have half the bounty!');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    } else if (gSecondCount < 2*gSettings.cutSceneDelay) {
+        text.push('Please give up.');
+        text.push('I want my best friend alive.');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    } else if (gSecondCount < 3*gSettings.cutSceneDelay) {
+        text.push('Fear not princess.');
+        text.push('Your love is worth any risk.');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    } else if (gSecondCount < 4*gSettings.cutSceneDelay) {
+        text.push('Oh dear...');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    } else {
+        loadNextLevel();
+        return;
+    }
+
+    drawCutsceneText(text, textcolor, x);
+}
+function drawFinalCutScene() {
+    drawCutsceneCharacters();
+    
+    var text = [], x = null, textcolor = null;
+
+    if (gSecondCount < 1*gSettings.cutSceneDelay) {
+        text.push('At last, I have it all!');
+        text.push('We can be together.');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    } else if (gSecondCount < 2*gSettings.cutSceneDelay) {
+        text.push('You fool.');
+        text.push('Why didn\'t you listen?');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    } else if (gSecondCount < 3*gSettings.cutSceneDelay) {
+        text.push('My princess?');
+        text.push('What\'s wrong?');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    } else if (gSecondCount < 4*gSettings.cutSceneDelay) {
+        text.push('Don\'t you see?');
+        text.push('I only see you as a friend.');
+        text.push('I can\'t marry you.');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    } else if (gSecondCount < 5*gSettings.cutSceneDelay) {
+        text.push('Oh... But... I thought...');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    } else if (gSecondCount < 6*gSettings.cutSceneDelay) {
+        text.push('I tried to tell you.');
+        text.push('Why didn\'t you listen?');
+        text.push('You\'ve ruined everything.');
+        x = gSettings.herX;
+        textcolor = gSettings.herColor;
+    } else if (gSecondCount < 7*gSettings.cutSceneDelay) {
+        text.push('But...');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+        gSettings.cutSceneDrawPrincess = false;
+    } else if (gSecondCount < 7.5*gSettings.cutSceneDelay) {
+        text.push('I love you.');
+        x = gSettings.hisX;
+        textcolor = gSettings.hisColor;
+    }  else if (gSecondCount < 10*gSettings.cutSceneDelay) {
+        //dramatic pause
+    } else {
+        loadNextLevel();
+        return;
+    }
+
+    drawCutsceneText(text, textcolor, x);
+}
 function drawGame() {
     gContext.fillStyle = "black";
     gContext.fillRect(0 , 0, gCanvas.width, gCanvas.height);
@@ -603,6 +821,16 @@ function drawGame() {
     monsterImage = null;
     
     if (gState == State.INGAME) {
+        if (gLevelNumber == 0 ) {
+            drawFirstCutScene();
+            return;
+        } else if (gLevelNumber == 6 ) {
+            drawSecondCutScene();
+            return;
+        } else if (gLevelNumber == 12 ) {
+            drawFinalCutScene();
+            return;
+        }
         //draw tiles
         for (var i = 0; i < gTiles.length; i++) {
             for (var j = 0; j < gTiles[i].length; j++) {
@@ -650,19 +878,20 @@ function drawGame() {
     }
 }
 
-var gOldTime = Date.now();
+//var gOldTime = Date.now();
 var gLoopCount = 0;
+var gSecondCount = 0;
 
 //executed 60/second
 var mainloop = function() {
-    newtime = Date.now();
-    dt = (newtime - gOldTime)/1000;
-    gOldTime = newtime;
+    //newtime = Date.now();
+    //dt = (newtime - gOldTime)/1000;
+    //gOldTime = newtime;
     
     gLoopCount++;
     gLoopCount = gLoopCount % 1000;
     
-    updateGame(dt);
+    updateGame();
     drawGame();
 };
 
