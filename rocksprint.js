@@ -127,7 +127,7 @@ MySprite = Class.extend({
 
 Player = MySprite.extend({
     init: function() {        
-        this._super([0,0], [0, 0]);
+        this._super([0,0]);
         this.diamonds = 0;
         this.dead = false;
     },
@@ -156,8 +156,11 @@ Player = MySprite.extend({
             this.down();
         }
         
-        this.checkForDiamond();
+        if (this.gotAllDiamonds()) {
+            return false;
+        }
         gTiles[this.pos[0]][this.pos[1]] = gSettings.const_empty;
+        return true;
     },
     left: function() {
         targetX = this.pos[0] - 1;
@@ -183,7 +186,9 @@ Player = MySprite.extend({
         
         player_move(targetX, targetY, this.pos[0], this.pos[1]);
     },
-    checkForDiamond: function() {
+    gotAllDiamonds: function() {
+        // returns true if no diamonds left
+    
         if (gTiles[this.pos[0]][this.pos[1]] == gSettings.const_diamond) {
             this.diamonds++;
             
@@ -192,8 +197,10 @@ Player = MySprite.extend({
             
             if (this.diamonds == gDiamondCount) {
                 loadNextLevel();
+                return true;
             }
         }
+        return false;
     },
     die: function() {
         //this.dead = true;
@@ -418,7 +425,7 @@ function loadNextLevel() {
     gPlayer = new Player();
     gLevelNumber++;
     gSecondCount = 0;
-    if (gLevelNumber!=0 && gLevelNumber!=6 && !loadTiles()) {
+    if (gLevelNumber!=0 && gLevelNumber!=6 && gLevelNumber!=12 && !loadTiles()) {
         //no more levels
         gLoading = false;
         endGame();
@@ -480,7 +487,7 @@ function loadTiles() {
     return false;
 }
 function newGame() {
-    gLevelNumber = 11;//-1;
+    gLevelNumber = -1;
     loadNextLevel();
     
     //gSound.play('music');
@@ -539,7 +546,9 @@ function updateGame() {
     }
 
     if (gLoopCount % 3 == 0) {
-        gPlayer.update();
+        if (!gPlayer.update()) {
+            return;
+        }
     }
     
     if (gLoopCount % 6 == 0) {
@@ -656,22 +665,21 @@ function drawSplashPregame(context) {
     gContext.drawImage(image, (gSettings.width/2)-20, 300);
 }
 function drawSplashEndgame(context) {
-    splashWidth = gSettings.width * (2/3);
-    splashHeight = gSettings.height * (2/3);
-    splashX = (gSettings.width - splashWidth) / 2;
-    splashY = (gSettings.height - splashHeight) / 2;
     
-    drawRect(context, splashX, splashY, splashWidth, splashHeight, gSettings.splashBackgroundColor);
-    
-    text = "Thats all folks";
-    x = splashX + 10;
-    y = splashY + 50;
+    text = "That\'s all folks";
+    x = 350;
+    y = 75;
     drawText(context, text, gSettings.bigFont, gSettings.splashTextColor, x, y);
     
-    /*text = "Press the space bar to try again";
-    x = splashX + 10;
-    y = splashY + 100;
-    drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);*/
+    text = "Fear not valiant player. Time heals all wounds.";
+    x = 40;
+    y = 200;
+    drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
+    
+    text = "Press x to play again";
+    x = 275;
+    y = 300;
+    drawText(context, text, gSettings.bigFont, gSettings.splashTextColor, x, y);
 }
 function drawCutsceneCharacters() {
     imageHim = gImage.getImage('playerbig');
@@ -780,25 +788,25 @@ function drawFinalCutScene() {
         text.push('What\'s wrong?');
         x = gSettings.hisX;
         textcolor = gSettings.hisColor;
-    } else if (gSecondCount < 4*gSettings.cutSceneDelay) {
-        text.push('I only see you as a friend.');
+    } else if (gSecondCount < 5*gSettings.cutSceneDelay) {
+        text.push('I see you as a friend.');
         text.push('You\'re like a brother to me.');
         text.push('Besides, I\'m seeing someone.');
         x = gSettings.herX;
         textcolor = gSettings.herColor;
-    } else if (gSecondCount < 5*gSettings.cutSceneDelay) {
+    } else if (gSecondCount < 6*gSettings.cutSceneDelay) {
         text.push('This is Chad.');
         text.push('He\'s in a band.');
         x = gSettings.herX;
         textcolor = gSettings.herColor;
         gSettings.cutSceneDrawChad = true;
-    } else if (gSecondCount < 6*gSettings.cutSceneDelay) {
+    } else if (gSecondCount < 7*gSettings.cutSceneDelay) {
         text.push('Sup bro.');
         x = gSettings.herX;
         textcolor = gSettings.chadColor;
         //gSettings.cutSceneDrawPrincess = false;
-    } else if (gSecondCount < 7*gSettings.cutSceneDelay) {
-        text.push('What the fuck?');
+    } else if (gSecondCount < 8*gSettings.cutSceneDelay) {
+        text.push('Fuck...');
         x = gSettings.hisX;
         textcolor = gSettings.hisColor;
     } else {
