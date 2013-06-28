@@ -1,7 +1,7 @@
 rock-sprint
 ==================
 
-"Rock Sprint" is a free game that you hopefully find amusing or interesting in some way.
+"Mine Runner" is a free game that you hopefully find amusing or interesting in some way.
 
 All programming was done by Andrew Davis.
 The git repository is at https://andyjdavis@bitbucket.org/andyjdavis/rock-sprint.git
@@ -14,6 +14,13 @@ The boulder and brick images are by thomaswp and is available from http://openga
 
 The monster is by qubodup and is available from http://opengameart.org/content/16px-neon-minimal-mages-monsters-powers-and-dirt
 
-The two characters are modified versions of characters by "/usr/share" and are available from http://opengameart.org/content/16x16-8-bit-rpg-character-set
+The three characters are modified versions of characters by "/usr/share" and are available from http://opengameart.org/content/16x16-8-bit-rpg-character-set
+
+The monster death sound is http://soundbible.com/992-Right-Cross.html
+
+The rock fall sound is http://soundbible.com/1120-Bounce.html
+
+The music is from http://www.soundempire.com/
+
 
 

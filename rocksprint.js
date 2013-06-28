@@ -257,15 +257,17 @@ function onSoundLoad() {
 }
 SoundManager = Class.extend({
     numSoundsLoaded: 0,
-    sounds: Array(),//Array(2),
+    sounds: Array(3),
     enabled: true,
     init: function() {
         try {
             //this._context = new webkitAudioContext();
             
-            //this.sounds['launch'] = new Audio("sfx_fly.ogg");
-            //this.sounds['explosion'] = new Audio("DeathFlash.ogg");
-            //this.sounds['music'] = new Audio("DST-AngryRobotIII.mp3");
+            //this.sounds['ingamemusic'] = new Audio("Fairing Well.mp3");
+            //this.sounds['cutscenemusic'] = new Audio("Fairing Well.mp3");
+            this.sounds['music'] = new Audio("Fairing Well.ogg");
+            this.sounds['thump'] = new Audio("thump.ogg");
+            this.sounds['rock'] = new Audio("rock.ogg");
             
             for (var key in this.sounds) {
                 //this.sounds[key].preload = "auto";
@@ -275,10 +277,20 @@ SoundManager = Class.extend({
             alert("Web Audio not supported");
         }
     },
-    play: function(name) {
+    play: function(name, loop) {
         if (this.enabled && name in this.sounds) {
-            this.sounds[name].currentTime = 0;
-            this.sounds[name].play();
+            if (loop) {
+                this.sounds[name].addEventListener('ended', function() {
+                    this.currentTime = 0;
+                    this.play();
+                }, false);
+            }
+            if (this.sounds[name].duration > 0 && !this.sounds[name].paused) {
+                //already playing
+            } else {
+                this.sounds[name].currentTime = 0;
+                this.sounds[name].play();
+            }
         }
     },
     stop: function(name) {
@@ -289,6 +301,11 @@ SoundManager = Class.extend({
     volume: function(name, volume) {
         if (this.enabled && name in this.sounds) {
             this.sounds[name].volume = volume;
+        }
+    },
+    isplaying: function(name) {
+        if (this.enabled && name in this.sounds) {
+            return !this.sounds[name].paused;
         }
     }
 });
@@ -430,6 +447,15 @@ function loadNextLevel() {
         gLoading = false;
         endGame();
     }
+    //if (gLevelNumber==0 || gLevelNumber==6 || gLevelNumber==12) {
+        //if (gSound.isplaying('ingamemusic')) {
+        //    gSound.stop('ingamemusic');
+        //}
+        //gSound.play('cutscenemusic');
+    //} else if (gSound.isplaying('cutscenemusic')) {
+        //gSound.stop('cutscenemusic');
+        //gSound.play('ingamemusic');
+    //}
     gLoading = false;
 }
 function loadTiles() {
@@ -490,8 +516,8 @@ function newGame() {
     gLevelNumber = -1;
     loadNextLevel();
     
-    //gSound.play('music');
-    //gSound.volume('music', 0.5);
+    gSound.play('music', true);
+    gSound.volume('music', 0.5);
     
     gState = State.INGAME;
 }
@@ -537,6 +563,7 @@ function findRockFallSpot(x, y) {
     }
     return [x, y];
 }
+
 function updateGame() {
     if (gState != State.INGAME || gLoading) {
         return;
@@ -585,6 +612,7 @@ function updateGame() {
             gTiles[x][y] = gSettings.const_monster;
             if (x == gPlayer.pos[0] && y == gPlayer.pos[1]) {
                 //todo play sound
+                gSound.play('thump');
                 reloadLevel();
                 return;
             }
@@ -597,11 +625,19 @@ function updateGame() {
                         newspot = findRockFallSpot(x, y);
                         gTiles[x][y] = gSettings.const_empty;
                         gTiles[newspot[0]][newspot[1]] = gSettings.const_diamond;
+                        if (x!=newspot[0] || y!=newspot[1]) {
+                            if (gTiles[newspot[0]][newspot[1]+1] != gSettings.const_empty) {
+                                gSound.play('rock');
+                            }
+                        }
                         break;
                     case gSettings.const_boulder:
                         newspot = findRockFallSpot(x, y);
                         if (x != newspot[0] || y != newspot[1]) {
                             //the boulder has moved
+                            if (gTiles[newspot[0]][newspot[1]+1] != gSettings.const_empty) {
+                                gSound.play('rock');
+                            }
                             if (newspot[0] == gPlayer.pos[0]
                             //&& newspot[1]+1 == gPlayer.pos[1]) {
                             && newspot[1] == gPlayer.pos[1]) {
@@ -774,27 +810,35 @@ function drawFinalCutScene() {
     var text = [], x = null, textcolor = null;
 
     if (gSecondCount < 1*gSettings.cutSceneDelay) {
+        //gSound.volume('cutscenemusic', 0.8);
         text.push('At last, it is done.');
         text.push('We can be together!');
         x = gSettings.hisX;
         textcolor = gSettings.hisColor;
     } else if (gSecondCount < 2*gSettings.cutSceneDelay) {
+        //gSound.volume('cutscenemusic', 0.6);
         text.push('You fool.');
         text.push('Why didn\'t you listen?');
         x = gSettings.herX;
         textcolor = gSettings.herColor;
     } else if (gSecondCount < 3*gSettings.cutSceneDelay) {
+        //gSound.volume('cutscenemusic', 0.4);
         text.push('My princess?');
         text.push('What\'s wrong?');
         x = gSettings.hisX;
         textcolor = gSettings.hisColor;
     } else if (gSecondCount < 5*gSettings.cutSceneDelay) {
+        //gSound.volume('music', 0.2);
         text.push('I see you as a friend.');
         text.push('You\'re like a brother to me.');
         text.push('Besides, I\'m seeing someone.');
         x = gSettings.herX;
         textcolor = gSettings.herColor;
+        //if (gSound.isplaying('cutscenemusic')) {
+        //    gSound.stop('cutscenemusic');
+        //}
     } else if (gSecondCount < 6*gSettings.cutSceneDelay) {
+        //gSound.stop('music');
         text.push('This is Chad.');
         text.push('He\'s in a band.');
         x = gSettings.herX;
@@ -806,6 +850,7 @@ function drawFinalCutScene() {
         textcolor = gSettings.chadColor;
         //gSettings.cutSceneDrawPrincess = false;
     } else if (gSecondCount < 8*gSettings.cutSceneDelay) {
+        gSound.stop('music');
         text.push('Fuck...');
         x = gSettings.hisX;
         textcolor = gSettings.hisColor;
@@ -831,12 +876,6 @@ function drawGame() {
     gContext.fillRect(0 , 0, gCanvas.width, gCanvas.height);
     //context.clearRect(0, 0, canvas.width, canvas.height);
     
-    diamondImage = gImage.getImage('diamond');
-    dirtImage = gImage.getImage('dirt');
-    boulderImage = gImage.getImage('boulder');
-    solidImage = gImage.getImage('rock');
-    monsterImage = gImage.getImage('monster');
-    
     if (gState == State.INGAME) {
         if (gLevelNumber == 0 ) {
             drawFirstCutScene();
@@ -849,6 +888,11 @@ function drawGame() {
             return;
         }
         //draw tiles
+        diamondImage = gImage.getImage('diamond');
+        dirtImage = gImage.getImage('dirt');
+        boulderImage = gImage.getImage('boulder');
+        solidImage = gImage.getImage('rock');
+        monsterImage = gImage.getImage('monster');
         for (var i = 0; i < gTiles.length; i++) {
             for (var j = 0; j < gTiles[i].length; j++) {
                 x = i * gSettings.tile_size;
@@ -870,12 +914,6 @@ function drawGame() {
             }
         }
         drawRightMargin();
-        
- /*       ctx.beginPath();
-        ctx.moveTo();
-        ctx.lineTo();
-        //ctx.closePath();
-        ctx.stroke();*/
 
         gPlayer.draw();
         
