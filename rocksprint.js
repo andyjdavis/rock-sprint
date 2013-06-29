@@ -156,7 +156,7 @@ Player = MySprite.extend({
             this.down();
         }
         
-        if (this.gotAllDiamonds()) {
+        if (this.getDiamonds()) {
             return false;
         }
         gTiles[this.pos[0]][this.pos[1]] = gSettings.const_empty;
@@ -186,7 +186,7 @@ Player = MySprite.extend({
         
         player_move(targetX, targetY, this.pos[0], this.pos[1]);
     },
-    gotAllDiamonds: function() {
+    getDiamonds: function() {
         // returns true if no diamonds left
     
         if (gTiles[this.pos[0]][this.pos[1]] == gSettings.const_diamond) {
@@ -277,6 +277,15 @@ SoundManager = Class.extend({
             alert("Web Audio not supported");
         }
     },
+    togglemute: function() {
+        if (this.enabled) {
+            this.stop('music');
+            this.enabled = !this.enabled;
+        } else {
+            this.enabled = !this.enabled;
+            this.play('music', true);
+        }
+    },
     play: function(name, loop) {
         if (this.enabled && name in this.sounds) {
             if (loop) {
@@ -361,6 +370,8 @@ function onKeyDown(event) {
         if (event.keyCode == 88) { // 'x' to start game
             newGame();
         }
+    } else if (event.keyCode == 77) { // 'm' to toggle sound
+        gSound.togglemute();
     } else if (gState == State.INGAME) {
         gKeyState[event.keyCode] = true;
     }
@@ -629,6 +640,9 @@ function updateGame() {
                             if (gTiles[newspot[0]][newspot[1]+1] != gSettings.const_empty) {
                                 gSound.play('rock');
                             }
+                            if (gPlayer.getDiamonds()) {
+                                return;
+                            }
                         }
                         break;
                     case gSettings.const_boulder:
@@ -639,11 +653,10 @@ function updateGame() {
                                 gSound.play('rock');
                             }
                             if (newspot[0] == gPlayer.pos[0]
-                            //&& newspot[1]+1 == gPlayer.pos[1]) {
-                            && newspot[1] == gPlayer.pos[1]) {
-                                reloadLevel();
-                                return;
-                                //gPlayer.die();
+                                && newspot[1] == gPlayer.pos[1]) {
+                                    gSound.play('thump');
+                                    reloadLevel();
+                                    return;
                             }
                         }
                         gTiles[x][y] = gSettings.const_empty;
@@ -687,14 +700,19 @@ function drawSplashPregame(context) {
     y = gSettings.splashline1y;
     drawText(context, text, gSettings.bigFont, gSettings.splashTextColor, x, y);
     
-    text = "Use w a s d to move";
-    x = gSettings.splashline2x;
+    text = "w a s d to move";
+    x = gSettings.splashline1x;
     y = gSettings.splashline2y;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
     
-    text = "Press 'x' to begin";
-    x = gSettings.splashline2x;
-    y = gSettings.splashline2y + 50;
+    text = "m to un/mute";
+    x = gSettings.splashline1x;
+    y = gSettings.splashline2y + 30;
+    drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
+    
+    text = "x to begin";
+    x = gSettings.splashline1x;
+    y = gSettings.splashline2y + 60;
     drawText(context, text, gSettings.smallFont, gSettings.splashTextColor, x, y);
     
     image = gImage.getImage('playerbig');
