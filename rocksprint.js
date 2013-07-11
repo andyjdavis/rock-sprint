@@ -130,6 +130,7 @@ Player = MySprite.extend({
         this._super([0,0]);
         this.diamonds = 0;
         this.dead = false;
+        this.framessincemoved = 0;
     },
     draw: function() {
         if (this.dead) {
@@ -143,18 +144,21 @@ Player = MySprite.extend({
     },
     update: function() {
         if (this.dead) {
-            return;
+            return true;
         }
         
-        if (gKeyState[65]) { //a - left
-            this.left();
-        } else if (gKeyState[68]) { //d - right
-            this.right();
-        } else if (gKeyState[87]) { //w - up
-            this.up();
-        } else if (gKeyState[83]) { //s - down
-            this.down();
+        if (this.framessincemoved > 4) {
+            if (gKeyState[65]) { //a - left
+                this.left();
+            } else if (gKeyState[68]) { //d - right
+                this.right();
+            } else if (gKeyState[87]) { //w - up
+                this.up();
+            } else if (gKeyState[83]) { //s - down
+                this.down();
+            }
         }
+        this.framessincemoved++;
         
         if (this.getDiamonds()) {
             return false;
@@ -249,6 +253,7 @@ function player_move(x, y, playerX, playerY) {
     if (move) {
         gPlayer.pos[0] = x;
         gPlayer.pos[1] = y;
+        gPlayer.framessincemoved = 0;
     }
 }
 
@@ -583,10 +588,8 @@ function updateGame() {
         return;
     }
 
-    if (gLoopCount % 3 == 0) {
-        if (!gPlayer.update()) {
-            return;
-        }
+    if (!gPlayer.update()) {
+        return;
     }
     
     if (gLoopCount % 6 == 0) {
