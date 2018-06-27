@@ -6,9 +6,8 @@ rock-sprint
 Play it https://www.newgrounds.com/portal/view/620666
 
 Blog post http://www.thetravelingprogrammer.com/july-1gam-mine-runner/
-==================
-All programming was done by Andrew Davis.
-The git repository is at https://github.com/andyjdavis/rock-sprint
+
+The git repository https://github.com/andyjdavis/rock-sprint
 
 The dirt image is by Axolotl and is available from http://opengameart.org/content/dirt
 
