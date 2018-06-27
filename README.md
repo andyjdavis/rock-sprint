@@ -3,8 +3,12 @@ rock-sprint
 
 "Mine Runner" is a free game that you hopefully find amusing or interesting in some way.
 
+Play it https://www.newgrounds.com/portal/view/620666
+
+Blog post http://www.thetravelingprogrammer.com/july-1gam-mine-runner/
+==================
 All programming was done by Andrew Davis.
-The git repository is at https://andyjdavis@bitbucket.org/andyjdavis/rock-sprint.git
+The git repository is at https://github.com/andyjdavis/rock-sprint
 
 The dirt image is by Axolotl and is available from http://opengameart.org/content/dirt
 
